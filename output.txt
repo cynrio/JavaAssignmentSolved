@@ -1,0 +1,34 @@
+outputs:
+--- Attempt 1:
+java -Djava.security.manager PermisTest
+
+WARNING: A command line option has enabled the Security Manager
+WARNING: The Security Manager is deprecated and will be removed in a future release
+Exception in thread "main" java.security.AccessControlException: access denied ("java.util.PropertyPermission" "user.home" "read")
+	at java.base/java.security.AccessControlContext.checkPermission(AccessControlContext.java:485)
+	at java.base/java.security.AccessController.checkPermission(AccessController.java:1068)
+	at java.base/java.lang.SecurityManager.checkPermission(SecurityManager.java:416)
+	at java.base/java.lang.SecurityManager.checkPropertyAccess(SecurityManager.java:1160)
+	at java.base/java.lang.System.getProperty(System.java:929)
+	at PermisTest.main(PermisTest.java:8)
+
+
+--- Attempt 2:
+java -Djava.security.manager -Djava.security.policy=permisTest.policy PermisTest
+
+WARNING: A command line option has enabled the Security Manager
+WARNING: The Security Manager is deprecated and will be removed in a future release
+/Users/faisal
+Error java.io.FileNotFoundException: input.txt (No such file or directory)
+
+
+--- Attempt 3(created input.txt file in home dir):
+java -Djava.security.manager -Djava.security.policy=permisTest.policy PermisTest
+
+WARNING: A command line option has enabled the Security Manager
+WARNING: The Security Manager is deprecated and will be removed in a future release
+/Users/faisal
+The two nos are : 5, 10
+The total sum value is 15
+
+- created output.txt with value: 15
