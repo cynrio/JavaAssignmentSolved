@@ -17,7 +17,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 public class CustomerAddressApp extends JFrame {
     private static final String TITLE = "Customer Address Management";
@@ -31,7 +30,6 @@ public class CustomerAddressApp extends JFrame {
     private final DefaultTableModel customerTableModel;
     private final JTable customerTable;
     private final JTextArea addressTextArea;
-    private final JTextField postalCodeField;
     private final JButton addButton;
     private final JButton modifyButton;
     private final JButton deleteButton;
@@ -44,7 +42,7 @@ public class CustomerAddressApp extends JFrame {
 
         // Initialize services
         try {
-            Connection conn = DBConnection.getConnection();
+            Connection conn = DBConnection.getInstance().getConnection();
             customerService = new CustomerService(conn);
             addressService = new AddressService(conn);
         } catch (SQLException e) {
@@ -66,7 +64,6 @@ public class CustomerAddressApp extends JFrame {
         };
         customerTable = createCustomerTable();
         addressTextArea = createAddressTextArea();
-        postalCodeField = createPostalCodeField();
         searchField = createSearchField();
 
         // Initialize buttons
@@ -96,11 +93,6 @@ public class CustomerAddressApp extends JFrame {
         return textArea;
     }
 
-    private JTextField createPostalCodeField() {
-        JTextField field = new JTextField(20);
-        field.setToolTipText("Enter postal code (Format: NNNNN or NNNNN-NNNN)");
-        return field;
-    }
 
     private JTextField createSearchField() {
         JTextField field = new JTextField(20);
@@ -116,21 +108,21 @@ public class CustomerAddressApp extends JFrame {
 
         // Table Panel
         JPanel tablePanel = new JPanel(new BorderLayout());
+        tablePanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
         tablePanel.add(searchPanel, BorderLayout.NORTH);
         tablePanel.add(new JScrollPane(customerTable), BorderLayout.CENTER);
 
         // Address Panel
         JPanel addressPanel = new JPanel();
         addressPanel.setLayout(new BoxLayout(addressPanel, BoxLayout.Y_AXIS));
-        addressPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        addressPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 10));
 
-        addressPanel.add(new JLabel("Address Details:"));
+        JLabel addressLabel = new JLabel("Address Details");
+        addressLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        addressPanel.add(addressLabel);
         addressPanel.add(Box.createVerticalStrut(10));
 
         addressPanel.add(new JScrollPane(addressTextArea));
-        addressPanel.add(Box.createVerticalStrut(10));
-//        addressPanel.add(new JLabel("Postal Code:"));
-//        addressPanel.add(postalCodeField);
         addressPanel.add(Box.createVerticalStrut(10));
 
         // Buttons Panel
@@ -171,7 +163,13 @@ public class CustomerAddressApp extends JFrame {
 
     private void loadCustomers(String searchTerm) {
         try {
-            List<Customer> customers = customerService.searchCustomers(searchTerm);
+            List<Customer> customers;
+
+            if (searchTerm.isBlank())
+                customers = customerService.getAllCustomers();
+            else
+                customers = customerService.searchCustomers(searchTerm);
+
             customerTableModel.setRowCount(0);
             for (Customer customer : customers) {
                 customerTableModel.addRow(new Object[]{
@@ -194,6 +192,9 @@ public class CustomerAddressApp extends JFrame {
             try {
                 List<Address> addresses = addressService.getAddressesForCustomer(customerId);
                 displayAddresses(addresses);
+
+                // only 3 addresses can be added for the selected customer
+                addButton.setEnabled(addresses.size() < 3);
             } catch (SQLException e) {
                 handleError("Error Loading Addresses", e);
             }
@@ -232,7 +233,10 @@ public class CustomerAddressApp extends JFrame {
             }
             sb.append("\n");
         }
-        addressTextArea.setText(sb.toString());
+        if (sb.toString().isBlank())
+            addressTextArea.setText("No address found for the selected customer! You can add one.");
+        else
+            addressTextArea.setText(sb.toString());
     }
 
     private void handleAddAddress() {
@@ -258,7 +262,6 @@ public class CustomerAddressApp extends JFrame {
 
     private void handleModifyAddress() {
         try {
-            int selectedRow = getSelectedCustomerRow();
             String addressIdStr = JOptionPane.showInputDialog(this, "Enter Address ID to Modify:");
             if (addressIdStr != null && !addressIdStr.trim().isEmpty()) {
                 int addressId = Integer.parseInt(addressIdStr);
