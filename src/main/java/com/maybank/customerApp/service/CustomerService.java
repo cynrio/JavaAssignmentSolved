@@ -55,22 +55,6 @@ public class CustomerService {
         return customers;
     }
 
-    public Customer getCustomerById(int customerId) throws SQLException {
-        String query = "SELECT * FROM Customers WHERE customer_id = ?";
-
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, customerId);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return mapResultSetToCustomer(rs);
-                }
-            }
-        }
-
-        return null;
-    }
-
     public void createCustomer(Customer customer) throws SQLException, ValidationException {
         validateCustomer(customer);
 
@@ -97,60 +81,6 @@ public class CustomerService {
                     throw new SQLException("Creating customer failed, no ID obtained.");
                 }
             }
-        }
-    }
-
-    public void updateCustomer(Customer customer) throws SQLException, ValidationException {
-        validateCustomer(customer);
-
-        String query = """
-            UPDATE Customers 
-            SET short_name = ?, full_name = ?, city = ?, postal_code = ? 
-            WHERE customer_id = ?
-            """;
-
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, customer.getShortName());
-            stmt.setString(2, customer.getFullName());
-            stmt.setString(3, customer.getCity());
-            stmt.setString(4, customer.getPostalCode());
-            stmt.setInt(5, customer.getCustomerId());
-
-            int affectedRows = stmt.executeUpdate();
-            if (affectedRows == 0) {
-                throw new SQLException("Updating customer failed, no rows affected.");
-            }
-        }
-    }
-
-    public void deleteCustomer(int customerId) throws SQLException {
-        // First delete all addresses associated with the customer
-        String deleteAddressesQuery = "DELETE FROM Addresses WHERE customer_id = ?";
-        String deleteCustomerQuery = "DELETE FROM Customers WHERE customer_id = ?";
-
-        connection.setAutoCommit(false);
-        try {
-            // Delete addresses first
-            try (PreparedStatement stmt = connection.prepareStatement(deleteAddressesQuery)) {
-                stmt.setInt(1, customerId);
-                stmt.executeUpdate();
-            }
-
-            // Then delete the customer
-            try (PreparedStatement stmt = connection.prepareStatement(deleteCustomerQuery)) {
-                stmt.setInt(1, customerId);
-                int affectedRows = stmt.executeUpdate();
-                if (affectedRows == 0) {
-                    throw new SQLException("Deleting customer failed, no rows affected.");
-                }
-            }
-
-            connection.commit();
-        } catch (SQLException e) {
-            connection.rollback();
-            throw e;
-        } finally {
-            connection.setAutoCommit(true);
         }
     }
 

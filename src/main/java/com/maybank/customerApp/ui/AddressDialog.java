@@ -111,8 +111,10 @@ public class AddressDialog extends JDialog {
 
     private boolean validateInput() {
         String addressLine1 = addressLine1Field.getText().trim();
+        String addressLine2 = addressLine2Field.getText().trim();
+        String addressLine3 = addressLine3Field.getText().trim();
 
-        if (addressLine1.isEmpty()) {
+        if (addressLine1.isBlank()) {
             JOptionPane.showMessageDialog(this,
                     "Address Line 1 is required.",
                     "Validation Error",
@@ -121,15 +123,30 @@ public class AddressDialog extends JDialog {
             return false;
         }
 
-        if (addressLine1.length() > 100) {
+        if (addressLine1.length() > 80) {
             JOptionPane.showMessageDialog(this,
-                    "Address Line 1 cannot exceed 100 characters.",
+                    "Address Line 1 cannot exceed 80 characters.",
                     "Validation Error",
                     JOptionPane.ERROR_MESSAGE);
             addressLine1Field.requestFocus();
             return false;
         }
-
+        if (addressLine2.length() > 100) {
+            JOptionPane.showMessageDialog(this,
+                    "Address Line 2 cannot exceed 80 characters.",
+                    "Validation Error",
+                    JOptionPane.ERROR_MESSAGE);
+            addressLine1Field.requestFocus();
+            return false;
+        }
+        if (addressLine3.length() > 80) {
+            JOptionPane.showMessageDialog(this,
+                    "Address Line 3 cannot exceed 80 characters.",
+                    "Validation Error",
+                    JOptionPane.ERROR_MESSAGE);
+            addressLine1Field.requestFocus();
+            return false;
+        }
         return true;
     }
 

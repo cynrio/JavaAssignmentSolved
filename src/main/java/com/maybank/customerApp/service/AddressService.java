@@ -124,22 +124,5 @@ public class AddressService {
         if (address == null) {
             throw new ValidationException("Address cannot be null");
         }
-        if (isNullOrEmpty(address.getAddressLine1())) {
-            throw new ValidationException("Address line 1 is required");
-        }
-        // Address lines 2 and 3 are optional
-        if (address.getAddressLine1().length() > 100) {
-            throw new ValidationException("Address line 1 cannot exceed 100 characters");
-        }
-        if (address.getAddressLine2() != null && address.getAddressLine2().length() > 100) {
-            throw new ValidationException("Address line 2 cannot exceed 100 characters");
-        }
-        if (address.getAddressLine3() != null && address.getAddressLine3().length() > 100) {
-            throw new ValidationException("Address line 3 cannot exceed 100 characters");
-        }
-    }
-
-    private boolean isNullOrEmpty(String str) {
-        return str == null || str.trim().isEmpty();
     }
 }
