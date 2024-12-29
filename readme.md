@@ -1,6 +1,7 @@
 # Instructions about codebase
 
-Package `com.maybank` contains the Java files as per the given questions list. Implementation described bellow. 
+All the implementation is done using Java 17 with MacOS. Package `com.maybank` contains the Java files 
+as per the given questions list. Implementation described bellow. 
 
 ## Question 1: `ArrArgs` 
 Code is refactored and optimized.
