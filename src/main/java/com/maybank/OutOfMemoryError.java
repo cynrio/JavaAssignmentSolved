@@ -1,11 +1,12 @@
 package com.maybank;
 
-public class OutOfMemoryErrorExample {
+// Question 3
+public class OutOfMemoryError {
 
     public static void main(String[] args) {
         try {
             simulateOutOfMemory();
-        } catch (OutOfMemoryError e) {
+        } catch (java.lang.OutOfMemoryError e) {
             System.err.println("OutOfMemoryError occurred: " + e.getMessage());
             System.out.println("Resolving with optimized approach...");
 
