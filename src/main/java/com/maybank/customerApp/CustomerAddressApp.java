@@ -3,93 +3,166 @@ package com.maybank.customerApp;
 import com.maybank.customerApp.config.DBConnection;
 import com.maybank.customerApp.model.Address;
 import com.maybank.customerApp.model.Customer;
+import com.maybank.customerApp.service.CustomerService;
+import com.maybank.customerApp.service.AddressService;
+import com.maybank.customerApp.exception.ValidationException;
+import com.maybank.customerApp.ui.AddressDialog;
+import com.maybank.customerApp.util.SimpleDocumentListener;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.*;
-import java.sql.*;
-import java.util.*;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
 
-public class CustomerAddressApp {
-    private final JFrame frame;
-    private final JTable customerTable;
+public class CustomerAddressApp extends JFrame {
+    private static final String TITLE = "Customer Address Management";
+    private static final Dimension WINDOW_SIZE = new Dimension(1000, 700);
+    private static final String[] TABLE_COLUMNS = {
+            "Customer ID", "Short Name", "Full Name", "City", "Postal Code"
+    };
+
+    private final CustomerService customerService;
+    private final AddressService addressService;
     private final DefaultTableModel customerTableModel;
+    private final JTable customerTable;
     private final JTextArea addressTextArea;
+    private final JTextField postalCodeField;
     private final JButton addButton;
     private final JButton modifyButton;
     private final JButton deleteButton;
-    private final JTextField postalCodeField;
-
-    private Connection conn;
-    private final List<Customer> customers = new ArrayList<>();
+    private final JTextField searchField;
 
     public CustomerAddressApp() {
+        super(TITLE);
+
+        // Initialize services
         try {
-            conn = DBConnection.getConnection();
+            Connection conn = DBConnection.getConnection();
+            customerService = new CustomerService(conn);
+            addressService = new AddressService(conn);
         } catch (SQLException e) {
-            e.printStackTrace();
+            handleError("Database Connection Error", e);
+            throw new RuntimeException(e);
         }
 
-        frame = new JFrame("Customer Address Management");
-        frame.setSize(800, 600);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setLayout(new BorderLayout());
+        // Setup main window
+        setSize(WINDOW_SIZE);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(10, 10));
 
-        // Customer Table Panel
-        JPanel tablePanel = new JPanel(new BorderLayout());
-        customerTableModel = new DefaultTableModel(new String[]{"Customer ID", "Short Name", "Full Name", "City", "Postal Code"}, 0);
-        customerTable = new JTable(customerTableModel);
-        tablePanel.add(new JScrollPane(customerTable), BorderLayout.CENTER);
+        // Initialize components
+        customerTableModel = new DefaultTableModel(TABLE_COLUMNS, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // Make table read-only
+            }
+        };
+        customerTable = createCustomerTable();
+        addressTextArea = createAddressTextArea();
+        postalCodeField = createPostalCodeField();
+        searchField = createSearchField();
 
-        // Address Display Panel
-        JPanel addressPanel = new JPanel();
-        addressPanel.setLayout(new BoxLayout(addressPanel, BoxLayout.Y_AXIS));
-
-        addressTextArea = new JTextArea(10, 40);
-        addressTextArea.setEditable(false);
-        postalCodeField = new JTextField(20);
-        postalCodeField.setToolTipText("Postal Code (Required)");
-
+        // Initialize buttons
         addButton = new JButton("Add Address");
         modifyButton = new JButton("Modify Address");
         deleteButton = new JButton("Delete Address");
 
-        addressPanel.add(new JLabel("Address Details:"));
-        addressPanel.add(new JScrollPane(addressTextArea));
-        addressPanel.add(new JLabel("Postal Code:"));
-        addressPanel.add(postalCodeField);
-        addressPanel.add(addButton);
-        addressPanel.add(modifyButton);
-        addressPanel.add(deleteButton);
-
-        frame.add(tablePanel, BorderLayout.WEST);
-        frame.add(addressPanel, BorderLayout.CENTER);
-
-        loadCustomers();
-        addListeners();
-
-        frame.setVisible(true);
+        // Setup UI
+        setupUI();
+        setupListeners();
+        loadCustomers("");
     }
 
-    // Load all customers into the table
-    private void loadCustomers() {
-        customers.clear();
-        try (Statement stmt = conn.createStatement()) {
-            ResultSet rs = stmt.executeQuery("SELECT * FROM Customers");
-            while (rs.next()) {
-                Customer customer = new Customer();
-                customer.setCustomerId(rs.getInt("customer_id"));
-                customer.setShortName(rs.getString("short_name"));
-                customer.setFullName(rs.getString("full_name"));
-                customer.setCity(rs.getString("city"));
-                customer.setPostalCode(rs.getString("postal_code"));
+    private JTable createCustomerTable() {
+        JTable table = new JTable(customerTableModel);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        table.getTableHeader().setReorderingAllowed(false);
+        return table;
+    }
 
-                // Load addresses for the customer
-                loadAddressesForCustomer(customer);
+    private JTextArea createAddressTextArea() {
+        JTextArea textArea = new JTextArea(10, 40);
+        textArea.setEditable(false);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        return textArea;
+    }
 
-                customers.add(customer);
+    private JTextField createPostalCodeField() {
+        JTextField field = new JTextField(20);
+        field.setToolTipText("Enter postal code (Format: NNNNN or NNNNN-NNNN)");
+        return field;
+    }
+
+    private JTextField createSearchField() {
+        JTextField field = new JTextField(20);
+        field.setToolTipText("Search by name or postal code");
+        return field;
+    }
+
+    private void setupUI() {
+        // Search Panel
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        searchPanel.add(new JLabel("Search:"));
+        searchPanel.add(searchField);
+
+        // Table Panel
+        JPanel tablePanel = new JPanel(new BorderLayout());
+        tablePanel.add(searchPanel, BorderLayout.NORTH);
+        tablePanel.add(new JScrollPane(customerTable), BorderLayout.CENTER);
+
+        // Address Panel
+        JPanel addressPanel = new JPanel();
+        addressPanel.setLayout(new BoxLayout(addressPanel, BoxLayout.Y_AXIS));
+        addressPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        addressPanel.add(new JLabel("Address Details:"));
+        addressPanel.add(new JScrollPane(addressTextArea));
+        addressPanel.add(Box.createVerticalStrut(10));
+        addressPanel.add(new JLabel("Postal Code:"));
+        addressPanel.add(postalCodeField);
+        addressPanel.add(Box.createVerticalStrut(10));
+
+        // Buttons Panel
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        buttonPanel.add(addButton);
+        buttonPanel.add(modifyButton);
+        buttonPanel.add(deleteButton);
+        addressPanel.add(buttonPanel);
+
+        // Add panels to frame
+        add(tablePanel, BorderLayout.CENTER);
+        add(addressPanel, BorderLayout.EAST);
+    }
+
+    private void setupListeners() {
+        // Search functionality
+        searchField.getDocument().addDocumentListener(new SimpleDocumentListener(
+                e -> SwingUtilities.invokeLater(() -> loadCustomers(searchField.getText()))
+        ));
+
+        // Table selection
+        customerTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                loadSelectedCustomerAddresses();
+            }
+        });
+
+        // Button actions
+        addButton.addActionListener(e -> handleAddAddress());
+        modifyButton.addActionListener(e -> handleModifyAddress());
+        deleteButton.addActionListener(e -> handleDeleteAddress());
+    }
+
+    private void loadCustomers(String searchTerm) {
+        try {
+            List<Customer> customers = customerService.searchCustomers(searchTerm);
+            customerTableModel.setRowCount(0);
+            for (Customer customer : customers) {
                 customerTableModel.addRow(new Object[]{
                         customer.getCustomerId(),
                         customer.getShortName(),
@@ -99,144 +172,143 @@ public class CustomerAddressApp {
                 });
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            handleError("Error Loading Customers", e);
         }
     }
 
-    // Load addresses for a specific customer
-    private void loadAddressesForCustomer(Customer customer) {
-        try (PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Addresses WHERE customer_id = ?")) {
-            stmt.setInt(1, customer.getCustomerId());
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                Address address = new Address();
-                address.setAddressId(rs.getInt("address_id"));
-                address.setAddressLine1(rs.getString("address_line1"));
-                address.setAddressLine2(rs.getString("address_line2"));
-                address.setAddressLine3(rs.getString("address_line3"));
-                customer.getAddresses().add(address);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Load addresses of the selected customer
-    private void loadAddresses(int customerId) {
-        Customer selectedCustomer = customers.stream()
-                .filter(c -> c.getCustomerId() == customerId)
-                .findFirst()
-                .orElse(null);
-
-        if (selectedCustomer != null) {
-            addressTextArea.setText("");
-            for (Address address : selectedCustomer.getAddresses()) {
-                addressTextArea.append("Address: " + address.getAddressLine1() + "\n");
-                addressTextArea.append(address.getAddressLine2() + "\n");
-                addressTextArea.append(address.getAddressLine3() + "\n\n");
-            }
-        }
-    }
-
-    // Add Address Action
-    private void addAddress(int customerId) {
-        if (validatePostalCode(postalCodeField.getText())) {
-            String addressLine1 = JOptionPane.showInputDialog("Enter Address Line 1");
-            String addressLine2 = JOptionPane.showInputDialog("Enter Address Line 2");
-            String addressLine3 = JOptionPane.showInputDialog("Enter Address Line 3");
-
-            try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO Addresses (customer_id, address_line1, address_line2, address_line3)")) {
-                stmt.setInt(1, customerId);
-                stmt.setString(2, addressLine1);
-                stmt.setString(3, addressLine2);
-                stmt.setString(4, addressLine3);
-                stmt.executeUpdate();
-                loadAddresses(customerId);
+    private void loadSelectedCustomerAddresses() {
+        int selectedRow = customerTable.getSelectedRow();
+        if (selectedRow != -1) {
+            int customerId = (int) customerTable.getValueAt(selectedRow, 0);
+            try {
+                List<Address> addresses = addressService.getAddressesForCustomer(customerId);
+                displayAddresses(addresses);
             } catch (SQLException e) {
-                e.printStackTrace();
+                handleError("Error Loading Addresses", e);
             }
         }
     }
 
-    // Modify Address Action
-    private void modifyAddress(int customerId, int addressId) {
-        String addressLine1 = JOptionPane.showInputDialog("Enter New Address Line 1");
-        String addressLine2 = JOptionPane.showInputDialog("Enter New Address Line 2");
-        String addressLine3 = JOptionPane.showInputDialog("Enter New Address Line 3");
+    private void displayAddresses(List<Address> addresses) {
+        StringBuilder sb = new StringBuilder();
+        for (Address address : addresses) {
+            sb.append("Address ID: ").append(address.getAddressId()).append("\n");
+            sb.append(address.getAddressLine1()).append("\n");
+            if (address.getAddressLine2() != null && !address.getAddressLine2().isEmpty()) {
+                sb.append(address.getAddressLine2()).append("\n");
+            }
+            if (address.getAddressLine3() != null && !address.getAddressLine3().isEmpty()) {
+                sb.append(address.getAddressLine3()).append("\n");
+            }
+            sb.append("\n");
+        }
+        addressTextArea.setText(sb.toString());
+    }
 
-        try (PreparedStatement stmt = conn.prepareStatement("UPDATE Addresses SET address_line1 = ?, address_line2 = ?, address_line3 = ? WHERE address_id = ? AND customer_id = ?")) {
-            stmt.setString(1, addressLine1);
-            stmt.setString(2, addressLine2);
-            stmt.setString(3, addressLine3);
-            stmt.setInt(4, addressId);
-            stmt.setInt(5, customerId);
-            stmt.executeUpdate();
-            loadAddresses(customerId);
+    private void handleAddAddress() {
+        try {
+            int selectedRow = getSelectedCustomerRow();
+            int customerId = (int) customerTable.getValueAt(selectedRow, 0);
+
+            AddressDialog dialog = new AddressDialog(this, "Add New Address");
+            Optional<Address> result = dialog.showDialog();
+
+            if (result.isPresent()) {
+                Address address = result.get();
+                addressService.addAddress(customerId, address);
+                loadSelectedCustomerAddresses();
+                JOptionPane.showMessageDialog(this, "Address added successfully");
+            }
+        } catch (ValidationException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Validation Error", JOptionPane.ERROR_MESSAGE);
         } catch (SQLException e) {
-            e.printStackTrace();
+            handleError("Error Adding Address", e);
         }
     }
 
-    // Delete Address Action
-    private void deleteAddress(int customerId, int addressId) {
-        try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM Addresses WHERE address_id = ?")) {
-            stmt.setInt(1, addressId);
-            stmt.executeUpdate();
-            loadAddresses(customerId);
+    private void handleModifyAddress() {
+        try {
+            int selectedRow = getSelectedCustomerRow();
+            String addressIdStr = JOptionPane.showInputDialog(this, "Enter Address ID to Modify:");
+            if (addressIdStr != null && !addressIdStr.trim().isEmpty()) {
+                int addressId = Integer.parseInt(addressIdStr);
+                Address existingAddress = addressService.getAddress(addressId);
+
+                if (existingAddress != null) {
+                    AddressDialog dialog = new AddressDialog(this, "Modify Address", existingAddress);
+                    Optional<Address> result = dialog.showDialog();
+
+                    if (result.isPresent()) {
+                        Address updatedAddress = result.get();
+                        addressService.updateAddress(addressId, updatedAddress);
+                        loadSelectedCustomerAddresses();
+                        JOptionPane.showMessageDialog(this, "Address updated successfully");
+                    }
+                }
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid Address ID", "Error", JOptionPane.ERROR_MESSAGE);
         } catch (SQLException e) {
-            e.printStackTrace();
+            handleError("Error Modifying Address", e);
+        } catch (ValidationException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    // Postal Code Validation
-    private boolean validatePostalCode(String postalCode) {
-        if (postalCode.isEmpty() || postalCode.length() < 5) {
-            JOptionPane.showMessageDialog(frame, "Invalid Postal Code");
-            return false;
+    private void handleDeleteAddress() {
+        try {
+            getSelectedCustomerRow(); // Verify customer is selected
+            String addressIdStr = JOptionPane.showInputDialog(this, "Enter Address ID to Delete:");
+
+            if (addressIdStr != null && !addressIdStr.trim().isEmpty()) {
+                int addressId = Integer.parseInt(addressIdStr);
+
+                int confirm = JOptionPane.showConfirmDialog(
+                        this,
+                        "Are you sure you want to delete this address?",
+                        "Confirm Delete",
+                        JOptionPane.YES_NO_OPTION
+                );
+
+                if (confirm == JOptionPane.YES_OPTION) {
+                    addressService.deleteAddress(addressId);
+                    loadSelectedCustomerAddresses();
+                    JOptionPane.showMessageDialog(this, "Address deleted successfully");
+                }
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid Address ID", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (SQLException | ValidationException e) {
+            handleError("Error Deleting Address", e);
         }
-        return true;
     }
 
-    // Add Action Listeners to buttons and table row selection
-    private void addListeners() {
-        addButton.addActionListener(e -> {
-            int selectedRow = customerTable.getSelectedRow();
-            if (selectedRow != -1) {
-                int customerId = (int) customerTable.getValueAt(selectedRow, 0);
-                addAddress(customerId);
-            }
-        });
+    private int getSelectedCustomerRow() throws ValidationException {
+        int selectedRow = customerTable.getSelectedRow();
+        if (selectedRow == -1) {
+            throw new ValidationException("Please select a customer first");
+        }
+        return selectedRow;
+    }
 
-        modifyButton.addActionListener(e -> {
-            int selectedRow = customerTable.getSelectedRow();
-            if (selectedRow != -1) {
-                int customerId = (int) customerTable.getValueAt(selectedRow, 0);
-                String addressIdStr = JOptionPane.showInputDialog("Enter Address ID to Modify");
-                int addressId = Integer.parseInt(addressIdStr);
-                modifyAddress(customerId, addressId);
-            }
-        });
-
-        deleteButton.addActionListener(e -> {
-            int selectedRow = customerTable.getSelectedRow();
-            if (selectedRow != -1) {
-                int customerId = (int) customerTable.getValueAt(selectedRow, 0);
-                String addressIdStr = JOptionPane.showInputDialog("Enter Address ID to Delete");
-                int addressId = Integer.parseInt(addressIdStr);
-                deleteAddress(customerId, addressId);
-            }
-        });
-
-        customerTable.getSelectionModel().addListSelectionListener(e -> {
-            int selectedRow = customerTable.getSelectedRow();
-            if (selectedRow != -1) {
-                int customerId = (int) customerTable.getValueAt(selectedRow, 0);
-                loadAddresses(customerId);
-            }
-        });
+    private void handleError(String message, Exception e) {
+        e.printStackTrace();
+        JOptionPane.showMessageDialog(
+                this,
+                message + ": " + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE
+        );
     }
 
     public static void main(String[] args) {
-        new CustomerAddressApp();
+        SwingUtilities.invokeLater(() -> {
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                new CustomerAddressApp().setVisible(true);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 }
