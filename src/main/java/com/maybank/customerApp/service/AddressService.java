@@ -16,7 +16,7 @@ public class AddressService {
 
     public List<Address> getAddressesForCustomer(int customerId) throws SQLException {
         List<Address> addresses = new ArrayList<>();
-        String query = "SELECT * FROM Addresses WHERE customer_id = ? ORDER BY address_id";
+        String query = "SELECT * FROM addresses WHERE customer_id = ? ORDER BY address_id";
 
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, customerId);
@@ -32,7 +32,7 @@ public class AddressService {
     }
 
     public Address getAddress(int addressId) throws SQLException {
-        String query = "SELECT * FROM Addresses WHERE address_id = ?";
+        String query = "SELECT * FROM addresses WHERE address_id = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, addressId);
@@ -51,7 +51,7 @@ public class AddressService {
         validateAddress(address);
 
         String query = """
-            INSERT INTO Addresses (customer_id, address_line1, address_line2, address_line3) 
+            INSERT INTO addresses (customer_id, address_line1, address_line2, address_line3) 
             VALUES (?, ?, ?, ?)
             """;
 
@@ -80,7 +80,7 @@ public class AddressService {
         validateAddress(address);
 
         String query = """
-            UPDATE Addresses 
+            UPDATE addresses 
             SET address_line1 = ?, address_line2 = ?, address_line3 = ? 
             WHERE address_id = ?
             """;
@@ -99,7 +99,7 @@ public class AddressService {
     }
 
     public void deleteAddress(int addressId) throws SQLException {
-        String query = "DELETE FROM Addresses WHERE address_id = ?";
+        String query = "DELETE FROM addresses WHERE address_id = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, addressId);

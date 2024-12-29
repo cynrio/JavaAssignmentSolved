@@ -61,9 +61,11 @@ Implemented as per the requirements.
 
 ## Question 5: spring boot app `hello` is provided separately. 
 
-You can run that solution independently.
+You can run that solution independently. Database `maybank-db` should be created beforehand.
 
 ## Question 6: Implemented `CustomerAddressApp` under package `customerApp`
 
-This app is following MVC structure and provides the required features.
+This app is following MVC structure and provides the required features. 
+`scripts.sql` is provided for creating database and tables required for this app. 
+If you want to use your own credentials, you can update `DBConnection.java` file.
 

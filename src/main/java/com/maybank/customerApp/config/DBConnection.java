@@ -10,7 +10,7 @@ public class DBConnection {
 
     private DBConnection() throws SQLException {
         try {
-            String url = "jdbc:mysql://localhost:3306/hello-db";
+            String url = "jdbc:mysql://localhost:3306/maybank-db";
             String user = "root";
             String password = "password123";
             this.connection = DriverManager.getConnection(url, user, password);

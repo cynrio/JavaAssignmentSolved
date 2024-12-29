@@ -16,7 +16,7 @@ public class CustomerService {
 
     public List<Customer> getAllCustomers() throws SQLException {
         List<Customer> customers = new ArrayList<>();
-        String query = "SELECT * FROM Customers ORDER BY customer_id";
+        String query = "SELECT * FROM customers ORDER BY customer_id";
 
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(query)) {
@@ -32,7 +32,7 @@ public class CustomerService {
     public List<Customer> searchCustomers(String searchTerm) throws SQLException {
         List<Customer> customers = new ArrayList<>();
         String query = """
-            SELECT * FROM Customers 
+            SELECT * FROM customers 
             WHERE LOWER(short_name) LIKE ? 
             OR LOWER(full_name) LIKE ? 
             OR LOWER(postal_code) LIKE ?
@@ -59,7 +59,7 @@ public class CustomerService {
         validateCustomer(customer);
 
         String query = """
-            INSERT INTO Customers (short_name, full_name, city, postal_code) 
+            INSERT INTO customers (short_name, full_name, city, postal_code) 
             VALUES (?, ?, ?, ?)
             """;
 
