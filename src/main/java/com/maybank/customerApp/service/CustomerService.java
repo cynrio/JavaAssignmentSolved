@@ -168,25 +168,6 @@ public class CustomerService {
         if (customer == null) {
             throw new ValidationException("Customer cannot be null");
         }
-        if (isNullOrEmpty(customer.getShortName())) {
-            throw new ValidationException("Short name is required");
-        }
-        if (isNullOrEmpty(customer.getFullName())) {
-            throw new ValidationException("Full name is required");
-        }
-        if (isNullOrEmpty(customer.getPostalCode())) {
-            throw new ValidationException("Postal code is required");
-        }
-        if (!isValidPostalCode(customer.getPostalCode())) {
-            throw new ValidationException("Invalid postal code format");
-        }
     }
 
-    private boolean isNullOrEmpty(String str) {
-        return str == null || str.trim().isEmpty();
-    }
-
-    private boolean isValidPostalCode(String postalCode) {
-        return postalCode.matches("\\d{5}(-\\d{4})?");
-    }
 }

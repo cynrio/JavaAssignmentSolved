@@ -9,6 +9,16 @@ public class Customer {
     private String city;
     private String postalCode;
 
+    public Customer() {
+    }
+
+    public Customer(String shortName, String fullName, String city, String postalCode) {
+        this.shortName = shortName;
+        this.fullName = fullName;
+        this.city = city;
+        this.postalCode = postalCode;
+    }
+
     public List<Address> getAddresses() {
         return addresses;
     }

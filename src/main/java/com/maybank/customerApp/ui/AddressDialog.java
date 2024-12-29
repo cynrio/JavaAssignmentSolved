@@ -102,7 +102,7 @@ public class AddressDialog extends JDialog {
 
         // Add note about required field
         JLabel noteLabel = new JLabel("* Required field");
-        noteLabel.setBorder(BorderFactory.createEmptyBorder(0, 10, 5, 0));
+        noteLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 0));
         add(noteLabel, BorderLayout.NORTH);
 
         // Set default button

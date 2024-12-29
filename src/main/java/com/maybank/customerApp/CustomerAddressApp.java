@@ -7,6 +7,7 @@ import com.maybank.customerApp.service.CustomerService;
 import com.maybank.customerApp.service.AddressService;
 import com.maybank.customerApp.exception.ValidationException;
 import com.maybank.customerApp.ui.AddressDialog;
+import com.maybank.customerApp.ui.CustomerDialog;
 import com.maybank.customerApp.util.SimpleDocumentListener;
 
 import javax.swing.*;
@@ -35,6 +36,8 @@ public class CustomerAddressApp extends JFrame {
     private final JButton modifyButton;
     private final JButton deleteButton;
     private final JTextField searchField;
+    private final JButton newCustomerButton;
+
 
     public CustomerAddressApp() {
         super(TITLE);
@@ -67,6 +70,7 @@ public class CustomerAddressApp extends JFrame {
         searchField = createSearchField();
 
         // Initialize buttons
+        newCustomerButton = new JButton("New Customer");
         addButton = new JButton("Add Address");
         modifyButton = new JButton("Modify Address");
         deleteButton = new JButton("Delete Address");
@@ -121,10 +125,12 @@ public class CustomerAddressApp extends JFrame {
         addressPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         addressPanel.add(new JLabel("Address Details:"));
+        addressPanel.add(Box.createVerticalStrut(10));
+
         addressPanel.add(new JScrollPane(addressTextArea));
         addressPanel.add(Box.createVerticalStrut(10));
-        addressPanel.add(new JLabel("Postal Code:"));
-        addressPanel.add(postalCodeField);
+//        addressPanel.add(new JLabel("Postal Code:"));
+//        addressPanel.add(postalCodeField);
         addressPanel.add(Box.createVerticalStrut(10));
 
         // Buttons Panel
@@ -134,7 +140,11 @@ public class CustomerAddressApp extends JFrame {
         buttonPanel.add(deleteButton);
         addressPanel.add(buttonPanel);
 
+        JPanel bottomLeftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        bottomLeftPanel.add(newCustomerButton);
+
         // Add panels to frame
+        add(bottomLeftPanel, BorderLayout.SOUTH);
         add(tablePanel, BorderLayout.CENTER);
         add(addressPanel, BorderLayout.EAST);
     }
@@ -156,6 +166,7 @@ public class CustomerAddressApp extends JFrame {
         addButton.addActionListener(e -> handleAddAddress());
         modifyButton.addActionListener(e -> handleModifyAddress());
         deleteButton.addActionListener(e -> handleDeleteAddress());
+        newCustomerButton.addActionListener(e -> handleNewCustomer());
     }
 
     private void loadCustomers(String searchTerm) {
@@ -186,6 +197,25 @@ public class CustomerAddressApp extends JFrame {
             } catch (SQLException e) {
                 handleError("Error Loading Addresses", e);
             }
+        }
+    }
+
+    // Handle adding a new customer
+    private void handleNewCustomer() {
+        try {
+            CustomerDialog customerDialog = new CustomerDialog(this, "New Customer");
+            Optional<Customer> result = customerDialog.showDialog();
+
+            if (result.isPresent()) {
+                Customer newCustomer = result.get();
+                customerService.createCustomer(newCustomer);
+                loadCustomers(""); // Refresh the table
+                JOptionPane.showMessageDialog(this, "Customer added successfully");
+            }
+        } catch (ValidationException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Validation Error", JOptionPane.ERROR_MESSAGE);
+        } catch (SQLException e) {
+            handleError("Error Adding Customer", e);
         }
     }
 
